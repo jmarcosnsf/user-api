@@ -7,8 +7,6 @@ import (
 	"user-api/internal/user"
 )
 
-
-
 func main() {
 	if err := run(); err != nil {
 		slog.Error("failed to execute code", "error", err)

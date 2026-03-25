@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 )
+
 type Handler struct {
 	repo *Repository
 }
@@ -38,7 +39,15 @@ func (h *Handler) FindAll(w http.ResponseWriter, r *http.Request){
 }
 
 func (h *Handler) FindById(w http.ResponseWriter, r *http.Request){
-	
+	id := chi.URLParam(r,"id")
+	user, err := h.repo.FindById(id)
+	if err != nil {
+		slog.Error("user not found", "error", err)
+		api.SendJSON(w, api.Response{Error: err.Error()}, http.StatusNotFound)
+		return
+	}
+
+	api.SendJSON(w, api.Response{Data: user}, http.StatusOK)
 }
 
 func (h *Handler) Insert(w http.ResponseWriter, r *http.Request){
@@ -60,10 +69,39 @@ func (h *Handler) Insert(w http.ResponseWriter, r *http.Request){
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request){
+	var body UpdateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		slog.Error("failed to decode body", "error", err)
+		api.SendJSON(w, api.Response{Error: "invalid request body"}, http.StatusBadRequest)
+		return
+	}
 
+	if body.Name == "" || body.Email == "" {
+		api.SendJSON(w, api.Response{Error: "name and email required"}, http.StatusBadRequest)
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+	updatedUser, err := h.repo.Update(id,body.Name,body.Email)
+	if err != nil {
+		slog.Error("user not found", "error", err)
+		api.SendJSON(w, api.Response{Error: err.Error()}, http.StatusNotFound)
+		return
+	}
+
+	api.SendJSON(w, api.Response{Data: updatedUser}, http.StatusOK)
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request){
+	id := chi.URLParam(r, "id")
+	err := h.repo.Delete(id)
 
+	if err != nil {
+		slog.Error("user not found", "error", err)
+		api.SendJSON(w, api.Response{Error: err.Error()}, http.StatusNotFound)
+		return
+	}
+
+	api.SendJSON(w, api.Response{Data: "user deleted"}, http.StatusOK)
 }
 
