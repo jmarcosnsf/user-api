@@ -1,16 +1,21 @@
 # User API
 
-A RESTful API built with Go for user management. Features CRUD operations with a repository pattern architecture, designed for easy database integration.
+A RESTful API built with Go for user management. Features CRUD operations with a repository pattern architecture and PostgreSQL database.
 
 ## Tech Stack
 
 - Go 1.24
 - Chi (router)
-- UUID (google/uuid)
+- PostgreSQL 16
+- pgx (database driver)
+- Tern (migrations)
 
 ## Project Structure
 
 ```
+├── cmd/
+│   └── api/
+│       └── main.go
 ├── internal/
 │   ├── api/
 │   │   └── response.go
@@ -19,8 +24,44 @@ A RESTful API built with Go for user management. Features CRUD operations with a
 │       ├── handler.go
 │       ├── model.go
 │       └── repository.go
-└── m.go
+├── migrations/
+│   ├── 001_create_users_table.sql
+│   ├── tern.conf
+│   └── tern.conf.example
+├── .env.example
+├── compose.yaml
+└── go.mod
 ```
+
+## Setup
+
+1. Clone the repository
+
+2. Copy environment files:
+```bash
+cp .env.example .env
+cp migrations/tern.conf.example migrations/tern.conf
+```
+
+3. Configure your `.env` and `migrations/tern.conf` with your database credentials
+
+4. Start PostgreSQL:
+```bash
+docker compose up -d
+```
+
+5. Run migrations:
+```bash
+cd migrations
+tern migrate
+```
+
+6. Run the API:
+```bash
+go run ./cmd/api/
+```
+
+Server starts at `http://localhost:8080`
 
 ## Endpoints
 
@@ -31,14 +72,6 @@ A RESTful API built with Go for user management. Features CRUD operations with a
 | POST | `/users` | Create new user |
 | PUT | `/users/{id}` | Update user |
 | DELETE | `/users/{id}` | Delete user |
-
-## Running
-
-```bash
-go run main.go
-```
-
-Server starts at `http://localhost:8080`
 
 ## Usage Examples
 
@@ -70,7 +103,3 @@ curl -X PUT http://localhost:8080/users/{id} \
 ```bash
 curl -X DELETE http://localhost:8080/users/{id}
 ```
-
-## Roadmap
-
-- [ ] Database integration (replace in-memory map)

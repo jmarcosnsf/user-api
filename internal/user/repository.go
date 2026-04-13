@@ -1,99 +1,93 @@
 package user
 
 import (
-	"errors"
-	"sync"
+	"context"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repository struct {
-	mu sync.RWMutex
-	users map[string]User
+	pool *pgxpool.Pool
 }
 
-func NewRepository() *Repository {
+func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{
-		users: make(map[string]User),
+		pool: pool,
 	}
 }
 
-func (r *Repository) FindAll() []User {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	users := make([]User, 0, len(r.users))
-
-	for _, user := range r.users {
-		users = append(users, user)
+func (r *Repository) FindAll() ([]User, error) {
+	rows, err := r.pool.Query(context.Background(), "select id,name,email,created_at,updated_at from users")
+	if err != nil {
+		return nil, err
 	}
 
-	return users
-}
+	defer rows.Close()
 
-func (r *Repository) FindById(id string) (User, error){
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	user, exists := r.users[id]
-	if !exists {
-		return User{}, errors.New("user not found")
-	} 
-
-	return user, nil
-}
-
-func (r *Repository) Insert(name, email string) (User, error){
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for _, user := range r.users{
-		if user.Email == email {
-			return User{}, errors.New("email already exists")
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, err
 		}
+		users = append(users, u)
 	}
 
+	return users, nil
+}
+
+func (r *Repository) FindById(id string) (User, error) {
+	var u User
+	query := "select id,name,email,created_at,updated_at from users where id = $1"
+	row := r.pool.QueryRow(context.Background(), query, id)
+
+	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return User{}, err
+	}
+
+	return u, nil
+}
+
+func (r *Repository) Insert(name, email string) (User, error) {
 	newUser := User{
-		ID: uuid.New().String(),
-		Name: name,
-		Email: email,
+		ID:        uuid.New().String(),
+		Name:      name,
+		Email:     email,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	r.users[newUser.ID] = newUser
+	query := "insert into users (id, name, email, created_at, updated_at) values ($1, $2, $3, $4, $5)"
+	_, err := r.pool.Exec(context.Background(), query, newUser.ID, newUser.Name, newUser.Email, newUser.CreatedAt, newUser.UpdatedAt)
+	if err != nil {
+		return User{}, err
+	}
 
 	return newUser, nil
 }
 
-func (r *Repository) Update(id,name,email string) (User, error){
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *Repository) Update(id, name, email string) (User, error) {
+	var u User
+	query := "update users set name = $1, email = $2, updated_at = $3 where id = $4 returning id, name, email, created_at, updated_at"
+	row := r.pool.QueryRow(context.Background(), query, name, email, time.Now(), id)
 
-	user, exists := r.users[id]
-	if !exists{
-		return User{}, errors.New("user not found")
+	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return User{}, err
 	}
 
-	user.Name = name
-	user.Email = email
-	user.UpdatedAt = time.Now()
-
-	r.users[id] = user
-
-	return user, nil
+	return u, nil
 }
 
-func (r * Repository) Delete(id string) error{
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	_, exists := r.users[id]
-	if !exists {
-		return errors.New("user not found")
+func (r *Repository) Delete(id string) error {
+	query := "delete from users where id = $1"
+	_, err := r.pool.Exec(context.Background(), query, id)
+	if err != nil {
+		return err
 	}
 
-	delete(r.users, id)
 	return nil
 }

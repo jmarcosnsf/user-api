@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 	"user-api/internal/user"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -16,7 +21,15 @@ func main() {
 }
 
 func run() error {
-	repo := user.NewRepository()
+	ctx := context.Background()
+	godotenv.Load()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
+	if err != nil {
+		return err
+	}
+
+	repo := user.NewRepository(pool)
 	handler := user.NewHandler(repo)
 
 	s := http.Server{

@@ -33,7 +33,13 @@ func NewHandler(repo *Repository) http.Handler {
 }
 
 func (h *Handler) FindAll(w http.ResponseWriter, r *http.Request){
-	users := h.repo.FindAll()
+	users,err := h.repo.FindAll()
+	if err != nil {
+		slog.Error("failed to fetch users", "error", err)
+		api.SendJSON(w, api.Response{Error: "failed to fetch users"}, http.StatusInternalServerError)
+		return
+	}
+	
 	api.SendJSON(w, api.Response{Data: users}, http.StatusOK)
 
 }
