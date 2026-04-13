@@ -26,7 +26,6 @@ A RESTful API built with Go for user management. Features CRUD operations with a
 │       └── repository.go
 ├── migrations/
 │   ├── 001_create_users_table.sql
-│   ├── tern.conf
 │   └── tern.conf.example
 ├── .env.example
 ├── compose.yaml
